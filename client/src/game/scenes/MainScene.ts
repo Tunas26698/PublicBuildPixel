@@ -123,14 +123,15 @@ export class MainScene extends Phaser.Scene {
         // Define Standing Area (Stage Floor)
         // Strictly within the grey area shown in reference.
         // Center X = totalWidth / 2
-        // Y Range: ~380 (Near Stage) to ~550 (Near Stairs)
-        // X Range: +/- 250 from center (Between Planters)
+        // Stage is likely around Y=400. We want to be BELOW it.
+        // Y Range: 480 (Below Stage) to 600 (Above Stairs)
+        // X Range: +/- 180 from center to stay clear of side planters
 
         const cx = totalWidth / 2;
-        const minX = cx - 200;
-        const maxX = cx + 200;
-        const minY = 380;
-        const maxY = 550;
+        const minX = cx - 180;
+        const maxX = cx + 180;
+        const minY = 480;
+        const maxY = 600;
 
         this.seats = [];
 
