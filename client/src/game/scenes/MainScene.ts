@@ -129,14 +129,13 @@ export class MainScene extends Phaser.Scene {
         const totalHeight = 1024 * scaleMap;
 
         // Create Map (Simplified to avoid loop issues)
+        // Create Map (Restoring full width)
         this.add.image(0, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
+        this.add.image(tileWidth, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
+        this.add.image(tileWidth * 2, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
 
-        // Remove looping duplicates that caused visual glitch
-        // this.add.image(tileWidth, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
-        // this.add.image(tileWidth * 2, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
-
-        this.physics.world.setBounds(0, 0, tileWidth, totalHeight);
-        this.cameras.main.setBounds(0, 0, tileWidth, totalHeight);
+        this.physics.world.setBounds(0, 0, totalWidth, totalHeight);
+        this.cameras.main.setBounds(0, 0, totalWidth, totalHeight);
 
         // --- Animations ---
         this.anims.create({
