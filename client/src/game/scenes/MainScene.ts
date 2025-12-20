@@ -452,19 +452,62 @@ export class MainScene extends Phaser.Scene {
         }
 
         if (targetSprite) {
-            const bubble = this.add.text(targetSprite.x, targetSprite.y - 60, text, {
+            // Container to hold bubble parts
+            const container = this.add.container(targetSprite.x, targetSprite.y - 80);
+
+            // Text Object (Create first to measure size)
+            const bubbleText = this.add.text(0, 0, text, {
                 fontSize: '14px',
-                color: '#ffffff',
-                backgroundColor: '#00000088',
-                padding: { x: 4, y: 4 }
+                color: '#000000',
+                fontFamily: 'Arial',
+                align: 'center',
+                wordWrap: { width: 200, useAdvancedWrap: true }
             }).setOrigin(0.5);
 
+            // Bounds
+            const bounds = bubbleText.getBounds();
+            const padding = 10;
+            const width = bounds.width + padding * 2;
+            const height = bounds.height + padding * 2;
+
+            // Graphics for Bubble Shape
+            const bubbleGraphics = this.add.graphics();
+            bubbleGraphics.fillStyle(0xffffff, 1);
+            bubbleGraphics.lineStyle(2, 0x000000, 1);
+
+            // Rounded Rectangle
+            bubbleGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 8);
+            bubbleGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, 8);
+
+            // Tail (Triangle)
+            const tailHeight = 10;
+            const tailWidth = 12;
+            bubbleGraphics.beginPath();
+            bubbleGraphics.moveTo(0, height / 2);
+            bubbleGraphics.lineTo(-tailWidth / 2, height / 2);
+            bubbleGraphics.lineTo(0, height / 2 + tailHeight);
+            bubbleGraphics.lineTo(tailWidth / 2, height / 2);
+            bubbleGraphics.closePath();
+            bubbleGraphics.fillPath();
+            bubbleGraphics.strokePath();
+
+            // Note: Stroke on tail might overlap weirdly with rect, but good enough for comic style
+            // Better look: re-draw rect and tail as one path or just fill tail over stroke? 
+            // Simple approach: Fill tail white to cover rect stroke, then stroke tail edges?
+            // For now, simple geometric shape is fine.
+
+            // Add to container (Graphics first so it's behind text)
+            container.add([bubbleGraphics, bubbleText]);
+            container.setDepth(1000); // Always on top
+
+            // Tween: Float up and Fade out
             this.tweens.add({
-                targets: bubble,
-                y: bubble.y - 20,
+                targets: container,
+                y: container.y - 30,
                 alpha: 0,
-                duration: 3000,
-                onComplete: () => bubble.destroy()
+                duration: 4000,
+                delay: 2000, // Stay visible for 2s then fade
+                onComplete: () => container.destroy()
             });
         }
     }
