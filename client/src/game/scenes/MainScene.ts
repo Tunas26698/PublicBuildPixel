@@ -90,11 +90,7 @@ export class MainScene extends Phaser.Scene {
                 const dy = playerInfo.y - child.y;
 
                 if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-                    const isCustom = child.texture.key.startsWith('other_player_') || child.texture.key === 'custom_player';
-                    const keyPrefix = isCustom ? `other_player_${playerInfo.id}` : 'character_anim';
-                    // Note: keyPrefix might need to match what was created in addOtherPlayer. 
-                    // simpler: just check current anim key prefix or just generic 'walk' if standard.
-                    // But we used custom keys: `other_player_${id}_walk`
+
 
                     const animKey = child.texture.key.startsWith('other_player_') ? `${child.texture.key}_walk` : 'walk';
                     child.play(animKey, true);
@@ -325,11 +321,6 @@ export class MainScene extends Phaser.Scene {
                 this.isSeated = false;
             }
         }
-
-        const oldX = this.player.x;
-        const oldY = this.player.y;
-
-        body.setVelocity(0);
 
         if (this.cursors.left.isDown) body.setVelocityX(-speed);
         else if (this.cursors.right.isDown) body.setVelocityX(speed);

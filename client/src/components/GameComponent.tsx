@@ -85,7 +85,7 @@ export const GameComponent = () => {
 
     useEffect(() => {
         const handleChat = (e: any) => {
-            const { name, text, id } = e.detail; // Custom event detail
+            const { name, text } = e.detail; // Custom event detail
             setChatMessages(prev => [...prev, {
                 name,
                 text,
