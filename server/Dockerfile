@@ -17,7 +17,8 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 # Install Python packages
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt --timeout 1000
 
 # Install Node.js dependencies
 COPY package*.json ./
