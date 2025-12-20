@@ -22,6 +22,7 @@ export const GameComponent = () => {
             height: '100%',
             // Enable pixel art rendering (no smoothing)
             pixelArt: true,
+            roundPixels: true,
             scale: {
                 mode: Phaser.Scale.RESIZE,
                 parent: gameRef.current,
@@ -32,7 +33,7 @@ export const GameComponent = () => {
                 default: 'arcade',
                 arcade: {
                     gravity: { y: 0, x: 0 },
-                    debug: true,
+                    debug: false,
                 },
             },
             scene: [MainScene],
@@ -68,6 +69,43 @@ export const GameComponent = () => {
     }, []);
 
 
+    const [chatMessages, setChatMessages] = useState<{ name: string; text: string; color: string }[]>([
+        { name: "System", text: "Welcome to the space! Press ENTER to chat.", color: "text-purple-400" }
+    ]);
+    const [inputValue, setInputValue] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatMessages]);
+
+    useEffect(() => {
+        const handleChat = (e: any) => {
+            const { name, text, id } = e.detail; // Custom event detail
+            setChatMessages(prev => [...prev, {
+                name,
+                text,
+                color: name === 'System' ? "text-purple-400" : "text-cyan-400"
+            }]);
+        };
+
+        window.addEventListener('chatMessage', handleChat);
+        return () => window.removeEventListener('chatMessage', handleChat);
+    }, []);
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inputValue.trim()) return;
+
+        // Dispatch event for MainScene to pick up
+        window.dispatchEvent(new CustomEvent('sendChat', { detail: inputValue }));
+        setInputValue("");
+    };
+
     return (
         <div className="flex w-screen h-screen bg-gray-900 overflow-hidden text-white font-sans">
             {/* Game Canvas - Takes available space */}
@@ -92,23 +130,6 @@ export const GameComponent = () => {
                                 onClick={() => {
                                     setShowJoinConfirmation(false);
                                     setIsInCall(true);
-                                    // Trigger Phaser auto-seat
-                                    if (gameRef.current) {
-                                        // We need to access the game instance to emit event.
-                                        // Since we don't have direct ref to game instance here easily without prop drilling or external store,
-                                        // we can use a custom event on the window or just assume MainScene is listening.
-                                        // Ideally we captured 'game' in a ref, but we didn't.
-                                        // Workaround: Dispatch a custom window event or usage of a global if needed, 
-                                        // BUT Phaser game instance is right there in useEffect scope.
-                                        // We can't access it from here. 
-                                        // Let's use a dirty global for this prototype or refactor.
-                                        // Proper way: Store game instance in a Ref.
-                                        // Refactoring to store game instance:
-                                    }
-                                    // Dispatch event via window for simplicity in this constrained edit context, 
-                                    // MainScene can listen to window or we fix the Ref. 
-                                    // MainScene listens to its own events. 
-                                    // Use a global helper or window dispatch.
                                     window.dispatchEvent(new CustomEvent('triggerAutoSeat'));
                                 }}
                                 className="px-4 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold transition-colors"
@@ -126,13 +147,10 @@ export const GameComponent = () => {
                         displayName="Sandy"
                         onLeave={() => {
                             setIsInCall(false);
-                            // Optional: Move player out of zone?
                         }}
                     />
                 )}
             </div>
-
-
 
             {/* Sidebar - Right side (Gather-style) */}
             <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-10 shadow-xl">
@@ -148,24 +166,25 @@ export const GameComponent = () => {
                 {/* Chat Area - Flexible height */}
                 <div className="flex-1 flex flex-col min-h-0 bg-gray-900/50">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        <div className="text-sm">
-                            <span className="text-purple-400 font-bold">System:</span>
-                            <span className="text-gray-300 ml-2">Welcome to the space!</span>
-                        </div>
-                        <div className="text-sm">
-                            <span className="text-blue-400 font-bold">Sandy:</span>
-                            <span className="text-gray-300 ml-2">Anyone at the stage?</span>
-                        </div>
+                        {chatMessages.map((msg, idx) => (
+                            <div key={idx} className="text-sm break-words">
+                                <span className={`${msg.color} font-bold`}>{msg.name}:</span>
+                                <span className="text-gray-300 ml-2">{msg.text}</span>
+                            </div>
+                        ))}
+                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Chat Input */}
-                    <div className="p-3 border-t border-gray-700 bg-gray-800">
+                    <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-700 bg-gray-800">
                         <input
                             type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
                             placeholder="Type a message..."
                             className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors"
                         />
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>

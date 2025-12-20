@@ -10,7 +10,9 @@ export class SocketManager {
         this.otherPlayers = this.scene.physics.add.group();
 
         // Connect to backend
-        this.socket = io('http://localhost:3000'); // Adjust URL as needed
+        // Connect to backend
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        this.socket = io(apiUrl);
 
         this.setupListeners();
     }
@@ -32,20 +34,23 @@ export class SocketManager {
         });
 
         this.socket.on('playerDisconnected', (playerId: string) => {
-            this.otherPlayers.getChildren().forEach((otherPlayer: any) => {
-                if (playerId === otherPlayer.playerId) {
-                    otherPlayer.destroy();
-                }
-            });
+            this.scene.events.emit('removeOtherPlayer', playerId);
         });
 
         this.socket.on('playerMoved', (playerInfo: any) => {
-            this.otherPlayers.getChildren().forEach((otherPlayer: any) => {
-                if (playerInfo.id === otherPlayer.playerId) {
-                    otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-                }
-            });
+            this.scene.events.emit('moveOtherPlayer', playerInfo);
         });
+
+        this.socket.on('chatMessage', (chatData: any) => {
+            // Emit to scene so UI can pick it up
+            this.scene.events.emit('chatMessage', chatData);
+        });
+    }
+
+    public sendChat(message: string) {
+        if (this.socket) {
+            this.socket.emit('chatMessage', message);
+        }
     }
 
     public emitPlayerMovement(x: number, y: number) {
@@ -54,26 +59,23 @@ export class SocketManager {
         }
     }
 
+    public joinGame(name: string, spriteUrl: string, portraitUrl: string) {
+        if (this.socket) {
+            this.socket.emit('joinGame', { name, spriteUrl, portraitUrl });
+        }
+    }
+
     private addPlayer(_playerInfo: any) {
-        // Already handled in MainScene for local player, but maybe we sync ID/Color here
-        console.log("My ID:", this.socket.id);
+        // Already handled in MainScene for local player
     }
 
     private addOtherPlayer(playerInfo: any) {
-        const otherPlayer = this.scene.physics.add.sprite(playerInfo.x, playerInfo.y, 'character_anim');
-        otherPlayer.setTint(0xff0000); // Tint red to distinguish? Or just use same sprite
-        otherPlayer.setScale(0.1); // Match new Chibi scale
-        // Note: Hitbox adjustment for remote players might be needed if we showed their debug bodies, 
-        // but setScale handles the visual size. 
-        // If we wanted to fix their anchor/origin, we might need to adjust offsets, 
-        // but `sprite` usually centers the frame. 
-        // Since there is whitespace, the "center" of the sprite might be empty air above the head.
-        // We might need to change origin to Bottom Center?
-        // this.player.setOrigin(0.5, 1); 
-        // Let's stick to default for now and see.
-        // Play idle animation by default
-        otherPlayer.anims.play('idle');
-
-        this.otherPlayers.add(otherPlayer);
+        // Delegate to MainScene to handle sprite loading
+        // We need to cast scene to MainScene to access custom methods
+        // Or trigger an event.
+        // Let's assume MainScene has addOtherPlayer method exposed if we passed it in constructor or use events.
+        // Actually, better to modify MainScene to handle this logic or allow access.
+        // For now, let's emit an event on the Scene that MainScene listens to.
+        this.scene.events.emit('addOtherPlayer', playerInfo);
     }
 }
