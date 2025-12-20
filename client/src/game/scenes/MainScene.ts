@@ -128,11 +128,15 @@ export class MainScene extends Phaser.Scene {
         const totalWidth = tileWidth * 3;
         const totalHeight = 1024 * scaleMap;
 
+        // Create Map (Simplified to avoid loop issues)
         this.add.image(0, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
-        this.add.image(tileWidth, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
-        this.add.image(tileWidth * 2, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
 
-        this.physics.world.setBounds(0, 0, totalWidth, totalHeight);
+        // Remove looping duplicates that caused visual glitch
+        // this.add.image(tileWidth, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
+        // this.add.image(tileWidth * 2, 0, 'office_map_clean').setOrigin(0, 0).setScale(scaleMap);
+
+        this.physics.world.setBounds(0, 0, tileWidth, totalHeight);
+        this.cameras.main.setBounds(0, 0, tileWidth, totalHeight);
 
         // --- Animations ---
         this.anims.create({
@@ -322,13 +326,19 @@ export class MainScene extends Phaser.Scene {
             }
         }
 
+        // Reset velocity every frame to stop movement if keys are released
+        body.setVelocity(0);
+
         if (this.cursors.left.isDown) body.setVelocityX(-speed);
         else if (this.cursors.right.isDown) body.setVelocityX(speed);
 
         if (this.cursors.up.isDown) body.setVelocityY(-speed);
         else if (this.cursors.down.isDown) body.setVelocityY(speed);
 
-        body.velocity.normalize().scale(speed);
+        // Normalize and scale only if moving to avoid drift
+        if (body.velocity.x !== 0 || body.velocity.y !== 0) {
+            body.velocity.normalize().scale(speed);
+        }
 
         const isCustom = this.player.texture.key === 'custom_player';
         const walkKey = isCustom ? 'walk_custom' : 'walk';
