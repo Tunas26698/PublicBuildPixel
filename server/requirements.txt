@@ -1,6 +1,6 @@
 requests
 numpy
-rembg[cli] --no-deps
+
 onnxruntime
 scikit-image
 Pillow
