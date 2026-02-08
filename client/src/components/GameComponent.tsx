@@ -209,6 +209,41 @@ export const GameComponent = () => {
 
     const playerName = localStorage.getItem('playerName') || 'Guest';
 
+    // Mobile Check
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+            if (/android/i.test(userAgent) || /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+                setIsMobile(true);
+            }
+        };
+        checkMobile();
+    }, []);
+
+    if (isMobile) {
+        return (
+            <div className="flex flex-col items-center justify-center w-screen h-screen bg-gray-900 text-white p-8 text-center">
+                <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 text-yellow-500 animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg>
+                </div>
+                <h2 className="text-2xl font-bold mb-4">Desktop Only</h2>
+                <p className="text-gray-400 max-w-md mb-8">
+                    PublicBuild Beta is currently optimized for desktop computers to ensure the best multiplayer experience.
+                    <br /><br />
+                    Please visit us on a laptop or desktop!
+                </p>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors"
+                >
+                    Back to Home
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="flex w-screen h-screen bg-gray-900 overflow-hidden text-white font-sans">
             {/* Game Canvas - Takes available space */}
