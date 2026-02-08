@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { SocketManager } from '../SocketManager';
-import { Bot } from '../objects/Bot';
+
 
 export class MainScene extends Phaser.Scene {
     private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -8,7 +8,7 @@ export class MainScene extends Phaser.Scene {
     private socketManager!: SocketManager;
     // private debugText!: Phaser.GameObjects.Text;
     private otherPlayersGroup!: Phaser.Physics.Arcade.Group;
-    private bots: Bot[] = [];
+
     private presentationZone!: Phaser.GameObjects.Zone;
     private onZoneChange?: (inZone: boolean) => void;
     private obstacles!: Phaser.Physics.Arcade.StaticGroup;
@@ -47,10 +47,7 @@ export class MainScene extends Phaser.Scene {
             console.log('All assets loaded');
         });
 
-        // Load generated AI characters
-        for (let i = 1; i <= 10; i++) {
-            this.load.spritesheet(`char_${i}`, `/assets/ai_chars_animated/ai_char_${i}.png?v=12`, { frameWidth: 96, frameHeight: 128 });
-        }
+
     }
 
     create() {
@@ -179,31 +176,9 @@ export class MainScene extends Phaser.Scene {
             frameRate: 1
         });
 
-        // Bot Anims
-        for (let i = 1; i <= 10; i++) {
-            this.anims.create({
-                key: `walk_char_${i}`,
-                frames: this.anims.generateFrameNumbers(`char_${i}`, { start: 0, end: 2 }),
-                frameRate: 8,
-                repeat: -1,
-                yoyo: true
-            });
-            this.anims.create({
-                key: `idle_char_${i}`,
-                frames: [{ key: `char_${i}`, frame: 0 }],
-                frameRate: 1
-            });
-        }
 
-        // --- Bots ---
-        this.bots = [];
-        for (let i = 1; i <= 10; i++) {
-            const x = Phaser.Math.Between(0, totalWidth);
-            const y = Phaser.Math.Between(0, totalHeight);
-            const bot = new Bot(this, x, y, `char_${i}`);
-            this.bots.push(bot);
-            (bot.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
-        }
+
+
 
         // --- Player ---
         const savedSpriteUrl = localStorage.getItem('playerSprite');
@@ -552,7 +527,7 @@ export class MainScene extends Phaser.Scene {
                 this.onZoneChange?.(inZone);
             }
 
-            this.bots.forEach(bot => bot.update());
+
         } catch (e) {
             console.error("Error in MainScene update loop:", e);
         }
