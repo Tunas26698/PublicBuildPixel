@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #202028;
+            /* Fallback */
+            font-family: 'VT323', monospace;
+            /* Using VT323 for better readability of body text, Press Start for headers */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .card-container {
+            width: 900px;
+            background-color: #2a2a35;
+            border: 4px solid #4a4a58;
+            box-shadow:
+                0 0 0 4px #202028,
+                0 0 0 8px #4a4a58,
+                10px 10px 0px rgba(0, 0, 0, 0.5);
+            padding: 30px;
+            display: flex;
+            gap: 30px;
+            color: #e0e0e0;
+            position: relative;
+            background-image:
+                linear-gradient(rgba(42, 42, 53, 0.95), rgba(42, 42, 53, 0.95)),
+                url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMjAyMDI4Ii8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMzMDMwM2MiLz4KPC9zdmc+');
+        }
+
+        /* Decorative Corners */
+        .corner {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #f0c040;
+            border: 2px solid #806020;
+        }
+
+        .tl {
+            top: -6px;
+            left: -6px;
+        }
+
+        .tr {
+            top: -6px;
+            right: -6px;
+        }
+
+        .bl {
+            bottom: -6px;
+            left: -6px;
+        }
+
+        .br {
+            bottom: -6px;
+            right: -6px;
+        }
+
+        /* Left Column: Avatar & Omni Stats */
+        .profile-left {
+            width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .avatar-frame {
+            width: 100%;
+            height: 320px;
+            border: 4px solid #fff;
+            outline: 4px solid #202028;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* object-position: center top; */
+        }
+
+        .stats-box {
+            background: #1a1a20;
+            border: 2px solid #4a4a58;
+            padding: 15px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1.4rem;
+        }
+
+        .stat-label {
+            color: #8888aa;
+        }
+
+        .stat-val {
+            color: #f0c040;
+            font-weight: bold;
+        }
+
+        /* Right Column: Info */
+        .profile-right {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header {
+            border-bottom: 4px solid #4a4a58;
+            padding-bottom: 15px;
+        }
+
+        .name {
+            font-family: 'VT323', monospace;
+            font-size: 3.5rem;
+            color: #fff;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            text-shadow: 3px 3px 0 #000;
+            line-height: 1;
+            font-weight: bold;
+        }
+
+        .class-title {
+            color: #f0c040;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.9rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section-title {
+            color: #50b0ff;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .bio-text {
+            font-size: 1.4rem;
+            line-height: 1.4;
+            color: #ccc;
+            margin-bottom: 15px;
+        }
+
+        .achievements-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .achievements-list li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+            font-size: 1.3rem;
+            color: #ddd;
+        }
+
+        .achievements-list li::before {
+            content: "►";
+            position: absolute;
+            left: 0;
+            color: #f0c040;
+            font-size: 1rem;
+            top: 2px;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: auto;
+        }
+
+        .tag {
+            background: #303040;
+            padding: 5px 10px;
+            border: 1px solid #505060;
+            color: #88aadd;
+            font-size: 1.1rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card-container" id="capture-target">
+        <!-- Decoration -->
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <div class="profile-left">
+            <div class="avatar-frame">
+                <img src="file:///Users/sandywong/.gemini/antigravity/brain/9d30f11b-8a6d-4018-8675-47cf993a1a44/uploaded_image_1766402329077.jpg"
+                    class="avatar-img" alt="Avatar">
+            </div>
+
+            <div class="stats-box">
+                <div class="stat-row">
+                    <span class="stat-label">LVL</span>
+                    <span class="stat-val">10+</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">EXP</span>
+                    <span class="stat-val">MAX</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">STR</span>
+                    <span class="stat-val">99</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">INT</span>
+                    <span class="stat-val">99</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-right">
+            <div class="header">
+                <h1 class="name">Tuấn Trần</h1>
+                <p class="class-title">Class: Serial Entrepreneur</p>
+                <!-- <p class="class-title" style="margin-top:5px; font-size: 0.7rem; color: #888;">Spec: Solo Builder</p> -->
+            </div>
+
+            <div>
+                <div class="section-title">QUEST LOG</div>
+                <p class="bio-text">
+                    Serial Entrepreneur với 10+ năm kinh nghiệm xây dựng sản phẩm từ 0 &#8594; 1, tập trung vào product
+                    validated. Đã sáng lập và dẫn dắt nhiều dự án: Airiot, TarotX, AirWatt, The Frame.
+                </p>
+                <p class="bio-text">
+                    <strong style="color:#fff;">Current Quest:</strong> Xây dựng <strong>PublicBuild</strong> - nền tảng
+                    gamify community cho indie builders giao lưu, launching & Build in Public.
+                </p>
+            </div>
+
+            <div>
+                <div class="section-title">ACHIEVEMENTS</div>
+                <ul class="achievements-list">
+                    <li>Champion UEH Business Startup 2018</li>
+                    <li>Champion Startup Wheel 2019</li>
+                    <li>Top 10 Asia Pacific Low Carbon Challenge</li>
+                </ul>
+            </div>
+
+            <div class="tags">
+                <div class="tag">#IndieBuilder</div>
+                <div class="tag">#Gamification</div>
+                <div class="tag">#Founder</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

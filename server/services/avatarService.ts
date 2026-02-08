@@ -70,7 +70,7 @@ export class AvatarService {
         try {
             console.log("Generating pixel art with Pollinations.ai...");
 
-            const basePrompt = `8-bit pixel art chibi character, top-down view, ${description}, RPG game sprite style, solid white background`;
+            const basePrompt = `8-bit pixel art chibi character, super deformed, big head small body, ${description}, simple cute face, flat 8-bit pixel art style, top-down view, solid white background`;
             const seed = Math.floor(Math.random() * 1000000);
 
             const publicDir = path.join(__dirname, '../../client/public/assets/user_avatars');
@@ -93,6 +93,34 @@ export class AvatarService {
                 }
             } catch (e: any) { console.error("Front Generation Failed:", e.message); }
 
+            // A.1 Front Walk 1 (Left Step) - Using SAME SEED
+            try {
+                const promptWalk1 = `${basePrompt}, walking forward, left foot stepping forward, dynamic pose`;
+                const urlWalk1 = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptWalk1)}?width=128&height=128&seed=${seed}&nologo=true&model=flux`;
+                console.log("Fetching Walk1:", urlWalk1);
+
+                const resWalk1 = await axios.get(urlWalk1, { responseType: 'arraybuffer' });
+                if (resWalk1.data) {
+                    const buffer = Buffer.from(resWalk1.data);
+                    const walk1Path = path.join(publicDir, `gen_${cleanName}_front_walk1.png`);
+                    fs.writeFileSync(walk1Path, buffer);
+                }
+            } catch (e: any) { console.error("Walk1 Generation Failed:", e.message); }
+
+            // A.2 Front Walk 2 (Right Step) - Using SAME SEED
+            try {
+                const promptWalk2 = `${basePrompt}, walking forward, right foot stepping forward, dynamic pose`;
+                const urlWalk2 = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptWalk2)}?width=128&height=128&seed=${seed}&nologo=true&model=flux`;
+                console.log("Fetching Walk2:", urlWalk2);
+
+                const resWalk2 = await axios.get(urlWalk2, { responseType: 'arraybuffer' });
+                if (resWalk2.data) {
+                    const buffer = Buffer.from(resWalk2.data);
+                    const walk2Path = path.join(publicDir, `gen_${cleanName}_front_walk2.png`);
+                    fs.writeFileSync(walk2Path, buffer);
+                }
+            } catch (e: any) { console.error("Walk2 Generation Failed:", e.message); }
+
             // B. Back View
             try {
                 const promptBack = `${basePrompt}, standing facing away, back of head`;
@@ -111,7 +139,7 @@ export class AvatarService {
             // C. Portrait (1024x1024) -> Strategy: Gen Small (128x128) -> Upscale (1024x1024) Nearest Neighbor
             try {
                 // Portrait Description: Head and Shoulders (Ensure Face is Visible)
-                const promptPortrait = `8-bit pixel art portrait, ${description}, head and shoulders, simple retro game avatar, white background`;
+                const promptPortrait = `8-bit pixel art portrait, ${description}, head and shoulders, simple cute face, super deformed style, flat colors, white background`;
 
                 // Request SMALL image (128x128) to force blocked pixels
                 const urlPortrait = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptPortrait)}?width=128&height=128&seed=${seed}&nologo=true&model=flux`;

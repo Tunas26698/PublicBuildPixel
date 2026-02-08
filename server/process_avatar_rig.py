@@ -82,41 +82,54 @@ def main(input_path, output_path):
         back_img.save(back_out)
         print(f"Saved {back_out}")
     
-    # 3. Generate Walk Cycle (Rigging with Leg Steps)
-    base_arr = np.array(f1)
+    # 3. Generate Walk Cycle
+    walk1_path = input_path.replace('_front.png', '_front_walk1.png')
+    walk2_path = input_path.replace('_front.png', '_front_walk2.png')
     
-    leg_y = int(target_h * 0.65) # Legs start around Y=65% typically for chibi
-    center_x = int(target_w * 0.5)
+    f0 = None
+    f2 = None
     
-    bob_amount = 2
-    step_lift = 4
-    
-    def get_leg_step(arr, is_left, lift):
-        res = arr.copy()
-        
-        # Define Leg ROI
-        roi_y_start = leg_y
-        roi_x_start = 0 if is_left else center_x
-        roi_x_end = center_x if is_left else target_w
-        
-        # Extract and Lift Leg
-        leg_region = arr[roi_y_start:, roi_x_start:roi_x_end]
-        leg_lifted = shift_img_arr(leg_region, 0, -lift)
-        
-        # Place back
-        res[roi_y_start:, roi_x_start:roi_x_end] = leg_lifted
-        
-        # Entire body bob UP for bounce
-        res = shift_img_arr(res, 0, -bob_amount)
-        return res
+    if os.path.exists(walk1_path) and os.path.exists(walk2_path):
+        print(f"Found AI walk frames: {walk1_path}, {walk2_path}")
+        f0 = process_image(walk1_path, target_w, target_h)
+        f2 = process_image(walk2_path, target_w, target_h)
 
-    # Frame 0: Left Leg Step
-    f0_arr = get_leg_step(base_arr, True, step_lift)
-    f0 = Image.fromarray(f0_arr)
-    
-    # Frame 2: Right Leg Step
-    f2_arr = get_leg_step(base_arr, False, step_lift)
-    f2 = Image.fromarray(f2_arr)
+    if f0 is None or f2 is None:
+        print("Generating procedural walk cycle (AI frames missing)...")
+        base_arr = np.array(f1)
+        
+        leg_y = int(target_h * 0.65) # Legs start around Y=65% typically for chibi
+        center_x = int(target_w * 0.5)
+        
+        bob_amount = 2
+        step_lift = 4
+        
+        def get_leg_step(arr, is_left, lift):
+            res = arr.copy()
+            
+            # Define Leg ROI
+            roi_y_start = leg_y
+            roi_x_start = 0 if is_left else center_x
+            roi_x_end = center_x if is_left else target_w
+            
+            # Extract and Lift Leg
+            leg_region = arr[roi_y_start:, roi_x_start:roi_x_end]
+            leg_lifted = shift_img_arr(leg_region, 0, -lift)
+            
+            # Place back
+            res[roi_y_start:, roi_x_start:roi_x_end] = leg_lifted
+            
+            # Entire body bob UP for bounce
+            res = shift_img_arr(res, 0, -bob_amount)
+            return res
+
+        # Frame 0: Left Leg Step
+        f0_arr = get_leg_step(base_arr, True, step_lift)
+        f0 = Image.fromarray(f0_arr)
+        
+        # Frame 2: Right Leg Step
+        f2_arr = get_leg_step(base_arr, False, step_lift)
+        f2 = Image.fromarray(f2_arr)
     
     # Save Frames
     f0.save(os.path.join(base_dir, f"{base_name}_walk1.png"))

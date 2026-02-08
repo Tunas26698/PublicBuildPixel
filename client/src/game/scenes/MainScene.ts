@@ -6,11 +6,17 @@ export class MainScene extends Phaser.Scene {
     private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private socketManager!: SocketManager;
-    private debugText!: Phaser.GameObjects.Text;
+    // private debugText!: Phaser.GameObjects.Text;
     private otherPlayersGroup!: Phaser.Physics.Arcade.Group;
     private bots: Bot[] = [];
     private presentationZone!: Phaser.GameObjects.Zone;
     private onZoneChange?: (inZone: boolean) => void;
+    private obstacles!: Phaser.Physics.Arcade.StaticGroup;
+    private playerNameText!: Phaser.GameObjects.Text;
+    private otherPlayerNameTags: Map<string, Phaser.GameObjects.Text> = new Map();
+    private noEventText!: Phaser.GameObjects.Text;
+    private currentStageEvent: any = null;
+    private stageTimerEvent?: Phaser.Time.TimerEvent;
 
     // Auto-Seating State
     private seats: Phaser.Math.Vector2[] = [];
@@ -51,11 +57,12 @@ export class MainScene extends Phaser.Scene {
         console.log("MainScene: create started");
 
         // --- Debug Text ---
-        this.debugText = this.add.text(10, 100, 'Waiting...', {
-            font: '14px monospace',
-            color: '#00ff00',
-            backgroundColor: '#000000aa'
-        }).setScrollFactor(0).setDepth(1000);
+        // --- Debug Text ---
+        // this.debugText = this.add.text(10, 100, 'Waiting...', {
+        //     font: '14px monospace',
+        //     color: '#00ff00',
+        //     backgroundColor: '#000000aa'
+        // }).setScrollFactor(0).setDepth(1000);
 
         const onZoneChange = this.registry.get('onZoneChange');
         if (onZoneChange) {
@@ -71,13 +78,23 @@ export class MainScene extends Phaser.Scene {
             console.log("MainScene: Event 'addOtherPlayer'", playerInfo.id);
             this.addOtherPlayer(playerInfo);
             this.updateDebugInfo();
+            this.emitPlayerCount();
         });
 
         this.events.on('removeOtherPlayer', (playerId: string) => {
             console.log("MainScene: Event 'removeOtherPlayer'", playerId);
             const child = this.otherPlayersGroup.getChildren().find((p: any) => p.playerId === playerId) as Phaser.GameObjects.Sprite;
             if (child) child.destroy();
+
+            // Remove Name Tag
+            const nameText = this.otherPlayerNameTags.get(playerId);
+            if (nameText) {
+                nameText.destroy();
+                this.otherPlayerNameTags.delete(playerId);
+            }
+
             this.updateDebugInfo();
+            this.emitPlayerCount();
         });
 
         this.events.on('moveOtherPlayer', (playerInfo: any) => {
@@ -137,6 +154,12 @@ export class MainScene extends Phaser.Scene {
         this.physics.world.setBounds(0, 0, totalWidth, totalHeight);
         this.cameras.main.setBounds(0, 0, totalWidth, totalHeight);
 
+        // --- DEBUG: Log Click Coords ---
+        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+            console.log(`World Coords: x=${Math.round(worldPoint.x)}, y=${Math.round(worldPoint.y)}`);
+        });
+
         // --- Animations ---
         this.anims.create({
             key: 'walk',
@@ -186,13 +209,45 @@ export class MainScene extends Phaser.Scene {
         const savedSpriteUrl = localStorage.getItem('playerSprite');
         let playerTextureKey = 'character_anim';
 
-        this.player = this.physics.add.sprite(totalWidth / 2, totalHeight - 400, playerTextureKey);
+        this.player = this.physics.add.sprite(445, 271, playerTextureKey);
         this.player.setCollideWorldBounds(true);
         this.player.setDepth(100);
 
         this.player.setScale(0.1);
         this.player.body.setSize(100, 50);
         this.player.body.setOffset(100, 421);
+
+        // --- Physics & Collisions ---
+        // Reverted by request
+        // this.physics.world.debugGraphic.setVisible(true);
+        // this.physics.world.drawDebug = true;
+
+        // --- Physics & Collisions ---
+        this.obstacles = this.physics.add.staticGroup();
+
+        // Helper to add invisible wall
+        const createWall = (x: number, y: number, w: number, h: number) => {
+            const wall = this.add.rectangle(x + w / 2, y + h / 2, w, h);
+            this.physics.add.existing(wall, true); // true = static body
+            this.obstacles.add(wall);
+        };
+
+        // --- Map Boundaries & Obstacles ---
+        // Top Wall
+        createWall(0, 0, totalWidth, 50);
+        // Bottom Wall
+        createWall(0, totalHeight - 50, totalWidth, 50);
+        // Left Wall
+        createWall(0, 0, 50, totalHeight);
+        // Right Wall
+        createWall(totalWidth - 50, 0, 50, totalHeight);
+
+        // ============================================
+        // INTERNAL OBSTACLES REMOVED BY REQUEST
+        // ============================================
+
+        // Add collider
+        this.physics.add.collider(this.player, this.obstacles);
 
         if (savedSpriteUrl) {
             const customKey = 'custom_player';
@@ -217,6 +272,11 @@ export class MainScene extends Phaser.Scene {
                         frames: [{ key: customKey, frame: 1 }],
                         frameRate: 1
                     });
+                    this.anims.create({
+                        key: 'idle_back_custom',
+                        frames: [{ key: customKey, frame: 10 }], // Frame 10 = Row 3, Middle (Back)
+                        frameRate: 1
+                    });
                     this.player.play('idle_custom');
                 }
             });
@@ -228,6 +288,18 @@ export class MainScene extends Phaser.Scene {
         // Join Game Network
         const playerName = localStorage.getItem('playerName') || 'Guest';
         const playerPortrait = localStorage.getItem('playerPortrait') || '';
+
+        // --- Player Name Tag ---
+        this.playerNameText = this.add.text(this.player.x, this.player.y - 45, playerName, {
+            fontSize: '14px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontFamily: 'Arial, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+        }).setOrigin(0.5).setDepth(101);
+
         console.log('Joining game with:', { playerName, savedSpriteUrl, playerPortrait });
         this.socketManager.joinGame(playerName, savedSpriteUrl || '', playerPortrait);
 
@@ -257,6 +329,50 @@ export class MainScene extends Phaser.Scene {
         (this.presentationZone.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
         (this.presentationZone.body as Phaser.Physics.Arcade.Body).moves = false;
 
+        // --- Stage "No Event" Text ---
+        // --- Stage "No Event" Text ---
+        // Centered but smaller and subtle
+        this.noEventText = this.add.text(totalWidth / 2, 500, 'NO EVENT', {
+            fontSize: '32px',
+            fontFamily: 'Arial, sans-serif',
+            color: '#ffffff', // Bright White
+            fontStyle: 'bold',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(1);
+        this.noEventText.setShadow(2, 2, '#333333', 2, true, true);
+        this.noEventText.setAlpha(1); // Fully Visible
+
+        // Listen for stage updates to handle Countdown
+        window.addEventListener('stageUpdate', ((e: CustomEvent) => {
+            const eventData = e.detail;
+            this.currentStageEvent = eventData;
+
+            // Clear existing timer if any
+            if (this.stageTimerEvent) {
+                this.stageTimerEvent.remove(false);
+                this.stageTimerEvent = undefined;
+            }
+
+            if (eventData) {
+                this.noEventText.setVisible(true); // Show text (will be countdown)
+
+                // Immediate update
+                this.updateStageCountdown();
+
+                // Start loop
+                this.stageTimerEvent = this.time.addEvent({
+                    delay: 1000,
+                    callback: () => this.updateStageCountdown(),
+                    loop: true
+                });
+            } else {
+                this.noEventText.setText("NO EVENT");
+                this.noEventText.setVisible(true); // Always visible when no event? User asked "NO EVENT" text.
+            }
+        }) as EventListener);
+
         // --- Seats ---
         const cx = totalWidth / 2;
         const minX = cx - 180;
@@ -279,6 +395,52 @@ export class MainScene extends Phaser.Scene {
             const msg = e.detail;
             if (msg) this.socketManager.sendChat(msg);
         }) as EventListener);
+
+        window.addEventListener('reqStartStage', ((e: CustomEvent) => {
+            const { title, password } = e.detail;
+            this.socketManager.startStageEvent(title, password);
+        }) as EventListener);
+
+        window.addEventListener('reqEndStage', ((e: CustomEvent) => {
+            const { password } = e.detail;
+            this.socketManager.endStageEvent(password);
+        }) as EventListener);
+    }
+
+    private updateStageCountdown() {
+        if (!this.currentStageEvent || !this.noEventText) return;
+
+        const now = Date.now();
+        const start = this.currentStageEvent.startTime || this.currentStageEvent.timestamp;
+        const durationMins = this.currentStageEvent.duration || 30; // Default 30
+        const end = start + durationMins * 60 * 1000;
+
+        // Ensure style allows passing through
+        this.noEventText.setColor('#ffffff');
+
+        if (now < start) {
+            // Counting down to Start
+            const diff = start - now;
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            this.noEventText.setText(`STARTS IN ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+            this.noEventText.setColor('#ffff00'); // Yellow for emphasis
+        } else if (now < end) {
+            // Live
+            const diff = end - now;
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            this.noEventText.setText(`LIVE • ENDS IN ${mins}:${secs < 10 ? '0' : ''}${secs}`);
+            this.noEventText.setColor('#ff0000'); // Red for Live
+        } else {
+            // Ended
+            this.noEventText.setText("NO EVENT");
+            this.noEventText.setColor('#aaaaaa');
+            if (this.stageTimerEvent) {
+                this.stageTimerEvent.remove(false);
+                this.stageTimerEvent = undefined;
+            }
+        }
     }
 
     update() {
@@ -286,6 +448,19 @@ export class MainScene extends Phaser.Scene {
 
         // Update Debug Text
         this.updateDebugInfo();
+
+        // Update Name Tags (ALWAYS do this first to avoid early returns causing lag)
+        if (this.playerNameText && this.player) {
+            this.playerNameText.setPosition(this.player.x, this.player.y - 45);
+        }
+
+        this.otherPlayersGroup.getChildren().forEach((child: any) => {
+            const id = child.playerId;
+            const text = this.otherPlayerNameTags.get(id);
+            if (text) {
+                text.setPosition(child.x, child.y - 45);
+            }
+        });
 
         const body = this.player.body;
         const speed = 200;
@@ -298,8 +473,11 @@ export class MainScene extends Phaser.Scene {
                 this.player.setPosition(this.targetSeat.x, this.targetSeat.y);
                 this.isAutoMoving = false;
                 this.targetSeat = undefined;
+                this.targetSeat = undefined;
                 this.isSeated = true;
-                this.player.anims.play('idle_back', true);
+                const isCustom = this.player.texture.key === 'custom_player';
+                this.player.anims.play(isCustom ? 'idle_back_custom' : 'idle_back', true);
+                window.dispatchEvent(new CustomEvent('playerSeated')); // Notify UI
             } else {
                 this.physics.moveToObject(this.player, this.targetSeat, speed);
                 this.player.anims.play('walk', true);
@@ -317,7 +495,8 @@ export class MainScene extends Phaser.Scene {
 
         if (this.isSeated) {
             if (!hasInput) {
-                this.player.anims.play('idle_back', true);
+                const isCustom = this.player.texture.key === 'custom_player';
+                this.player.anims.play(isCustom ? 'idle_back_custom' : 'idle_back', true);
                 body.setVelocity(0);
                 return;
             } else {
@@ -364,16 +543,27 @@ export class MainScene extends Phaser.Scene {
             }
         }
 
-        if (this.presentationZone) {
-            const playerBounds = this.player.getBounds();
-            const inZone = Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, this.presentationZone.getBounds());
-            this.onZoneChange?.(inZone);
-        }
 
-        this.bots.forEach(bot => bot.update());
+
+        try {
+            if (this.presentationZone) {
+                const playerBounds = this.player.getBounds();
+                const inZone = Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, this.presentationZone.getBounds());
+                this.onZoneChange?.(inZone);
+            }
+
+            this.bots.forEach(bot => bot.update());
+        } catch (e) {
+            console.error("Error in MainScene update loop:", e);
+        }
     }
 
     private addOtherPlayer(playerInfo: any) {
+        // Prevent adding self
+        if (this.socketManager && this.socketManager['socket'] && playerInfo.id === this.socketManager['socket'].id) {
+            return;
+        }
+
         if (this.otherPlayersGroup.getChildren().some((child: any) => child.playerId === playerInfo.id)) {
             return;
         }
@@ -387,7 +577,7 @@ export class MainScene extends Phaser.Scene {
         this.otherPlayersGroup.add(otherPlayer);
 
         otherPlayer.setCollideWorldBounds(true);
-        otherPlayer.setScale(0.37);
+        otherPlayer.setScale(0.1);
         otherPlayer.body.setSize(32, 16);
         otherPlayer.body.setOffset(32, 110);
         (otherPlayer.body as Phaser.Physics.Arcade.Body).setImmovable(true);
@@ -404,6 +594,7 @@ export class MainScene extends Phaser.Scene {
 
             if (this.textures.exists(customKey)) {
                 otherPlayer.setTexture(customKey);
+                otherPlayer.setScale(0.37);
                 startAnim();
             } else {
                 this.load.spritesheet(customKey, playerInfo.spriteUrl, { frameWidth: 96, frameHeight: 128 });
@@ -411,6 +602,7 @@ export class MainScene extends Phaser.Scene {
                     console.log(`[MainScene] Loaded texture for ${playerInfo.id}`);
                     if (otherPlayer.active) {
                         otherPlayer.setTexture(customKey);
+                        otherPlayer.setScale(0.37);
                         startAnim();
                     }
                 });
@@ -421,6 +613,18 @@ export class MainScene extends Phaser.Scene {
         } else {
             otherPlayer.play('idle');
         }
+
+        // Add Name Tag
+        const nameText = this.add.text(x, y - 45, playerInfo.name || 'Guest', {
+            fontSize: '14px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontFamily: 'Arial, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+        }).setOrigin(0.5).setDepth(101);
+        this.otherPlayerNameTags.set(playerInfo.id, nameText);
     }
 
     private createWalkingAnims(key: string) {
@@ -515,29 +719,26 @@ export class MainScene extends Phaser.Scene {
     public autoMoveToSeat() {
         if (this.isAutoMoving || this.isSeated) return;
         const seatIndex = Phaser.Math.Between(0, this.seats.length - 1);
-        this.targetSeat = this.seats[seatIndex];
-        this.isAutoMoving = true;
-        this.isSeated = false;
+        const seat = this.seats[seatIndex];
+
+        // Instant Teleport
+        this.player.setPosition(seat.x, seat.y);
+        this.isSeated = true;
+        const isCustom = this.player.texture.key === 'custom_player';
+        this.player.anims.play(isCustom ? 'idle_back_custom' : 'idle_back', true);
+
+        this.socketManager.emitPlayerMovement(this.player.x, this.player.y);
+        window.dispatchEvent(new CustomEvent('playerSeated')); // Notify UI
+    }
+
+    private emitPlayerCount() {
+        const others = this.otherPlayersGroup ? this.otherPlayersGroup.getLength() : 0;
+        const total = others + 1; // +1 for self
+        window.dispatchEvent(new CustomEvent('playerCountUpdate', { detail: total }));
     }
 
     private updateDebugInfo() {
-        if (!this.debugText) return;
-
-        const myId = this.socketManager && this.socketManager['socket'] ? this.socketManager['socket'].id : 'Unknown';
-        const othersCount = this.otherPlayersGroup ? this.otherPlayersGroup.getLength() : 0;
-
-        let myPos = "Unknown";
-        if (this.player) {
-            myPos = `(${Math.round(this.player.x)}, ${Math.round(this.player.y)})`;
-        }
-
-        let othersList = "";
-        if (this.otherPlayersGroup) {
-            this.otherPlayersGroup.getChildren().forEach((p: any) => {
-                othersList += `\n[${p.playerId ? p.playerId.substr(0, 4) : '????'}] P:${Math.round(p.x)},${Math.round(p.y)} V:${p.visible} T:${p.texture.key}`;
-            });
-        }
-
-        this.debugText.setText(`ME: ${myId} @ ${myPos}\nOTHERS: ${othersCount}${othersList}`);
+        // ... existing debug logic (commented out) ...
     }
+
 }

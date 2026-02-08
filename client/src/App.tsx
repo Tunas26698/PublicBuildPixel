@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GameComponent } from './components/GameComponent';
 import { CreateAvatar } from './pages/CreateAvatar';
 import { LandingPage } from './pages/LandingPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
@@ -13,7 +14,8 @@ function App() {
             <GameComponent />
           </div>
         } />
-        <Route path="/create" element={<CreateAvatar />} />
+        <Route path="/create-avatar" element={<CreateAvatar />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>
   );

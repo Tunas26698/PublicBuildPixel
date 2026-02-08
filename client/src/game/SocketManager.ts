@@ -21,7 +21,7 @@ export class SocketManager {
         this.socket.on('currentPlayers', (players: any) => {
             this.otherPlayers.clear(true, true); // Destroy all existing to prevent ghosts
             Object.keys(players).forEach((id) => {
-                if (players[id].id === this.socket.id) {
+                if (id === this.socket.id) {
                     this.addPlayer(players[id]);
                 } else {
                     this.addOtherPlayer(players[id]);
@@ -45,6 +45,18 @@ export class SocketManager {
             // Emit to scene so UI can pick it up
             this.scene.events.emit('chatMessage', chatData);
         });
+
+        this.socket.on('chatHistory', (history: any) => {
+            window.dispatchEvent(new CustomEvent('chatHistory', { detail: history }));
+        });
+
+        this.socket.on('stageUpdate', (eventData: any) => {
+            window.dispatchEvent(new CustomEvent('stageUpdate', { detail: eventData }));
+        });
+
+        this.socket.on('adminError', (msg: string) => {
+            alert(`Admin Error: ${msg}`);
+        });
     }
 
     public sendChat(message: string) {
@@ -62,6 +74,18 @@ export class SocketManager {
     public joinGame(name: string, spriteUrl: string, portraitUrl: string) {
         if (this.socket) {
             this.socket.emit('joinGame', { name, spriteUrl, portraitUrl });
+        }
+    }
+
+    public startStageEvent(title: string, password: string) {
+        if (this.socket) {
+            this.socket.emit('startStageEvent', { title, password });
+        }
+    }
+
+    public endStageEvent(password: string) {
+        if (this.socket) {
+            this.socket.emit('endStageEvent', { password });
         }
     }
 

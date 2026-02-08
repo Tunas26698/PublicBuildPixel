@@ -13,6 +13,13 @@ export const GameComponent = () => {
     // Ref to track if we already notified to avoid react loop if called per frame
     const inZoneRef = useRef(false);
 
+    // Stage Event State
+    const [currentEvent, setCurrentEvent] = useState<{ title: string; roomId: string; hostName: string } | null>(null);
+    const [isHost, setIsHost] = useState(false);
+    const [showHostModal, setShowHostModal] = useState(false);
+    const [hostTitle, setHostTitle] = useState("");
+    const [hostPassword, setHostPassword] = useState("");
+
     useEffect(() => {
         if (!gameRef.current) return;
 
@@ -45,12 +52,13 @@ export const GameComponent = () => {
                             inZoneRef.current = inZone;
 
                             if (inZone) {
-                                // Enter Zone: Show confirmation
+                                // Enter Zone
                                 setShowJoinConfirmation(true);
                             } else {
                                 // Exit Zone: Reset all
                                 setShowJoinConfirmation(false);
                                 setIsInCall(false);
+                                // Don't reset isHost here, maybe they want to re-enter
                             }
                         }
                     });
@@ -93,18 +101,113 @@ export const GameComponent = () => {
             }]);
         };
 
+        const handleHistory = (e: any) => {
+            const history = e.detail; // Array of messages
+            const formatted = history.map((msg: any) => ({
+                name: msg.name,
+                text: msg.text,
+                color: "text-gray-400" // History messages slightly deeper color
+            }));
+            // Prepend history after system welcome
+            setChatMessages(prev => [prev[0], ...formatted]);
+        };
+
         window.addEventListener('chatMessage', handleChat);
-        return () => window.removeEventListener('chatMessage', handleChat);
+        window.addEventListener('chatHistory', handleHistory); // Needs MainScene to dispatch this
+        return () => {
+            window.removeEventListener('chatMessage', handleChat);
+            window.removeEventListener('chatHistory', handleHistory);
+        };
     }, []);
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim()) return;
 
+        // Command: /host <password>
+        if (inputValue.startsWith('/host ')) {
+            const pass = inputValue.split(' ')[1];
+            if (pass === 'duytuan123') { // Hardcoded for prototype
+                setIsHost(true);
+                setChatMessages(prev => [...prev, { name: "System", text: "You are now HOST. Please Start Broadcasting.", color: "text-green-400" }]);
+                setInputValue("");
+
+                // Force reload of Jitsi component logic
+                setIsInCall(false);
+                setShowJoinConfirmation(true);
+                return;
+            }
+        }
+
         // Dispatch event for MainScene to pick up
         window.dispatchEvent(new CustomEvent('sendChat', { detail: inputValue }));
         setInputValue("");
     };
+
+    useEffect(() => {
+        const handleSeated = () => {
+            setIsInCall(true);
+        };
+        window.addEventListener('playerSeated', handleSeated);
+        return () => window.removeEventListener('playerSeated', handleSeated);
+    }, []);
+
+    // Listen for Stage Updates
+    useEffect(() => {
+        const handleStageUpdate = (e: any) => {
+            const eventData = e.detail;
+            setCurrentEvent(eventData);
+
+            // If event ended and we are in call, maybe leave?
+            // For now, let's keep it simple. User manually leaves.
+            // But if we are audience, and event ends, maybe kick?
+            if (!eventData && isInCall && !isHost) {
+                setIsInCall(false);
+                setShowJoinConfirmation(false); // Reset
+            }
+        };
+        window.addEventListener('stageUpdate', handleStageUpdate);
+        return () => window.removeEventListener('stageUpdate', handleStageUpdate);
+    }, [isInCall, isHost]);
+
+    const [onlineCount, setOnlineCount] = useState(1);
+
+    useEffect(() => {
+        const handlePlayerCount = (e: any) => {
+            setOnlineCount(e.detail);
+        };
+        window.addEventListener('playerCountUpdate', handlePlayerCount);
+        return () => window.removeEventListener('playerCountUpdate', handlePlayerCount);
+    }, []);
+
+    // Check for Admin Command
+    useEffect(() => {
+        if (inputValue.startsWith('/host')) {
+            // Pre-fill host modal? Or just show it?
+            // Let's make a dedicated button appear if they type /admin
+        }
+    }, [inputValue]);
+
+    const handleHostSubmit = () => {
+        if (!hostTitle || !hostPassword) return;
+        // Emit start event
+        // We need access to socket manager. It's inside MainScene. 
+        // We can dispatch event to window, and MainScene listens.
+        // OR: MainScene listens to a custom event
+        window.dispatchEvent(new CustomEvent('reqStartStage', { detail: { title: hostTitle, password: hostPassword } }));
+        setIsHost(true);
+        setShowHostModal(false);
+        // Note: We don't join immediately here. We wait for 'stageUpdate' to confirm room creation.
+        // But for UX, we can just wait.
+    };
+
+    const handleStopEvent = () => {
+        window.dispatchEvent(new CustomEvent('reqEndStage', { detail: { password: hostPassword } }));
+        setIsHost(false);
+        setIsInCall(false);
+    };
+
+    const playerName = localStorage.getItem('playerName') || 'Guest';
 
     return (
         <div className="flex w-screen h-screen bg-gray-900 overflow-hidden text-white font-sans">
@@ -113,28 +216,64 @@ export const GameComponent = () => {
                 <div ref={gameRef} className="w-full h-full" />
 
                 {/* Confirmation Modal */}
-                {showJoinConfirmation && !isInCall && (
+                {showJoinConfirmation && !isInCall && currentEvent && (
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900 border border-purple-500 rounded-lg p-6 shadow-2xl z-50 max-w-sm text-center">
-                        <h2 className="text-xl font-bold text-purple-400 mb-4">🎤 Enter Presentation Stage?</h2>
-                        <p className="text-gray-300 mb-6 text-sm">
-                            You are about to join the event area. Your character will automatically find a seat and you will join the video call.
-                        </p>
+                        <div className="text-red-500 font-bold mb-2 animate-pulse">● LIVE NOW</div>
+                        <h2 className="text-xl font-bold text-white mb-2">{currentEvent.title}</h2>
+                        <p className="text-gray-400 text-xs mb-4">Hosted by {currentEvent.hostName}</p>
                         <div className="flex gap-4 justify-center">
                             <button
                                 onClick={() => setShowJoinConfirmation(false)}
                                 className="px-4 py-2 rounded border border-gray-600 hover:bg-gray-800 text-gray-300 transition-colors"
                             >
-                                Cancel
+                                Ignore
                             </button>
                             <button
                                 onClick={() => {
                                     setShowJoinConfirmation(false);
-                                    setIsInCall(true);
                                     window.dispatchEvent(new CustomEvent('triggerAutoSeat'));
+                                    // setIsInCall(true); // Triggered by playerSeated
                                 }}
-                                className="px-4 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold transition-colors"
+                                className={`px-4 py-2 rounded font-bold transition-colors text-white ${isHost
+                                    ? 'bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/50'
+                                    : 'bg-purple-600 hover:bg-purple-500'
+                                    }`}
                             >
-                                Join Event
+                                {isHost ? 'Start Broadcasting' : 'Join Event'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Host Modal */}
+                {showHostModal && (
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900 border border-purple-500 rounded-lg p-6 shadow-2xl z-50 w-80">
+                        <h2 className="text-xl font-bold text-white mb-4">Host an Event</h2>
+                        <input
+                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 mb-3 text-white"
+                            placeholder="Event Title"
+                            value={hostTitle}
+                            onChange={(e) => setHostTitle(e.target.value)}
+                        />
+                        <input
+                            className="w-full bg-gray-800 border border-gray-600 rounded p-2 mb-4 text-white"
+                            placeholder="Admin Password"
+                            type="password"
+                            value={hostPassword}
+                            onChange={(e) => setHostPassword(e.target.value)}
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setShowHostModal(false)}
+                                className="px-3 py-1 rounded text-gray-400 hover:text-white"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleHostSubmit}
+                                className="px-3 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold"
+                            >
+                                Go Live
                             </button>
                         </div>
                     </div>
@@ -143,10 +282,12 @@ export const GameComponent = () => {
                 {/* Video Call Auto-Interface - Only if Confirmed */}
                 {isInCall && (
                     <PresentationStage
-                        roomName="PixelOffice_General_Stage"
-                        displayName="Sandy"
+                        roomName={currentEvent ? currentEvent.roomId : "PixelOffice_Lobby"}
+                        displayName={playerName}
+                        isHost={isHost}
                         onLeave={() => {
                             setIsInCall(false);
+                            if (isHost) handleStopEvent(); // Ideally ask "End Event?"
                         }}
                     />
                 )}
@@ -156,10 +297,10 @@ export const GameComponent = () => {
             <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-10 shadow-xl">
                 {/* Sidebar Header */}
                 <div className="p-4 border-b border-gray-700 bg-gray-800">
-                    <h1 className="font-bold text-lg text-purple-400">Pixel Office</h1>
+                    <h1 className="font-bold text-lg text-purple-400">Build In Public Group</h1>
                     <div className="text-xs text-gray-400 flex items-center gap-2 mt-1">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        Online: 3
+                        Online: {onlineCount}
                     </div>
                 </div>
 
