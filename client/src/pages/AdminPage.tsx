@@ -14,8 +14,9 @@ const AdminPage = () => {
     const [currentEvent, setCurrentEvent] = useState<any>(null);
     const [statusMessage, setStatusMessage] = useState("");
 
+    // Use VITE_API_URL from environment (set to '/' in production)
+    // If not set, default to localhost:3000 for local dev
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    // Note: Assuming HTTPS if server updated, or HTTP if reverting. Localhost usually ignores cert errors or we accept.
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
